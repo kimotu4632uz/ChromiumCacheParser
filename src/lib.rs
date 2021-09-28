@@ -9,6 +9,8 @@ use std::io::{Seek, SeekFrom};
 use std::fs::File;
 use std::path::{Path, PathBuf};
 
+use anyhow::Context;
+
 type Result<T> = std::result::Result<T, error::Error>;
 
 pub struct Cache {
@@ -18,19 +20,22 @@ pub struct Cache {
 }
 
 impl Cache {
-    pub fn copy_data<P: AsRef<Path>>(&self, target: &entry::Entry, dst: P) -> crate::Result<()> {
+    pub fn copy_data<P: AsRef<Path>>(&self, target: &entry::Entry, dst: P) -> anyhow::Result<()> {
         if let entry::Key::LocalKey(key) = &target.key {
             let fname = key.split('/').last().unwrap();
 
             let target_addr = &target.data[0].0;
+            let from = self.base_path.join(&target_addr.file_name);
+            let to = dst.as_ref().join(fname);
+
             if target_addr.blocktype == address::BlockType::SeparateFile {
-                std::fs::copy(self.base_path.join(&target_addr.file_name), dst.as_ref().join(fname))?;
+                std::fs::copy(&from, &to).with_context(|| format!("Failed to copy file from {} to {}", from.display(), to.display()))?;
             } else {
-                let mut data = File::open(self.base_path.join(&target_addr.file_name))?;
+                let mut data = File::open(&from).with_context(|| format!("Failed to open file {}", from.display()))?;
                 data.seek(SeekFrom::Start((8192 + target_addr.block_number * (target_addr.blocktype.get_size() as u32)).into()))?;
 
                 let byte = reader::read_exact(&mut data, target.data[0].1 as usize)?;
-                std::fs::write(dst.as_ref().join(fname), byte)?;
+                std::fs::write(&to, byte).with_context(|| format!("Failed to write file {}", to.display()))?;
             }
         }
         Ok(())

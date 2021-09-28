@@ -67,8 +67,13 @@ impl Entry {
         let key = if let Some(addr) = kay_address {
             Key::DataKey(addr, key_length)
         } else {
-            let key = String::from_utf8(input.split_off(20usize).split_to(key_length as usize).to_vec()).map_err(|_| Error::StringParseError)?;
-            Key::LocalKey(key.to_owned())
+            if input.len() < (20 + key_length) as usize {
+                println!("Warning: couldn't parse string key of index...");
+                Key::LocalKey("".into())
+            } else {
+                let key = String::from_utf8(input.split_off(20usize).split_to(key_length as usize).to_vec()).map_err(|_| Error::StringParseError)?;
+                Key::LocalKey(key.to_owned())
+            }
         };
 
         Ok((Entry {

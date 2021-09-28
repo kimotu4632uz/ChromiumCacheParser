@@ -66,11 +66,21 @@ pub fn parse_http_header<P: AsRef<Path>>(addr: &Address, base_url: P) -> crate::
                 let pair: Vec<&str> = line.splitn(2, ": ").collect();
 
                 match pair[0] {
-                    "Date" => header.server_time = DateTime::from_utc(DateTime::parse_from_rfc2822(pair[1]).unwrap().naive_utc(), Utc),
+                    "Date" => {
+                        let date = DateTime::parse_from_rfc2822(pair[1]);
+                        if let Ok(d) = date {
+                            header.server_time = DateTime::from_utc(d.naive_utc(), Utc);
+                        }
+                    },
                     "Content-Type" => header.content_type = pair[1].into(),
                     "Content-Length" => header.content_length = pair[1].parse().unwrap(),
                     "Server" => header.server_name = pair[1].into(),
-                    "Last-Modified" => header.server_last_modified = DateTime::from_utc(DateTime::parse_from_rfc2822(pair[1]).unwrap().naive_utc(), Utc),
+                    "Last-Modified" => {
+                        let date = DateTime::parse_from_rfc2822(pair[1]);
+                        if let Ok(d) = date {
+                            header.server_last_modified = DateTime::from_utc(d.naive_utc(), Utc);
+                        }
+                    },
                     "ETag" => {
                         let tmp = &pair[1][2..];
                         header.etag = tmp[..(tmp.len() - 2)].into();
